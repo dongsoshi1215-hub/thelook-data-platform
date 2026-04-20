@@ -1,0 +1,67 @@
+config {
+    type: "view",
+    database: "project-b5514482-febd-4435-998",
+    schema: "look_mart",
+    name: "user_monthly_purchase_summary",
+}
+
+-- 顧客ごとの月別「購入回数」「合計金額」「平均購入単価」
+WITH user_summary AS (
+  SELECT
+    user_id,
+    order_year_month,
+    COUNT(DISTINCT order_id) AS order_count,
+    SUM(sale_price) AS total_amount,
+    SUM(sale_price) / COUNT(DISTINCT order_id) AS avg_amount
+  FROM
+    `project-b5514482-febd-4435-998.look_wide.orders`
+  GROUP BY
+    user_id,
+    order_year_month
+),
+-- ユーザーごとの初回購入月を取得
+user_first_month AS (
+  SELECT
+    user_id,
+    MIN(order_year_month) AS first_year_month
+  FROM
+    user_summary
+  GROUP BY
+    user_id
+),
+-- カレンダーから年月一覧を取得（重複削除）
+calendar_months AS (
+  SELECT 
+    DISTINCT year_month
+  FROM
+    `project-b5514482-febd-4435-998.look_util.calendar`
+  WHERE
+    year_month <= FORMAT_DATE('%Y-%m', CURRENT_DATE())
+),
+-- ユーザー × 年月（初回購入月以降のみ）
+user_month_base AS (
+  SELECT 
+    ufm.user_id,
+    cm.year_month
+  FROM
+    user_first_month ufm
+  CROSS JOIN
+    calendar_months cm
+  WHERE
+    cm.year_month >= ufm.first_year_month
+)
+
+SELECT
+  umb.user_id,
+  umb.year_month,
+  COALESCE(us.order_count, 0) AS order_count,
+  us.avg_amount,
+  COALESCE(us.total_amount, 0) AS total_amount
+FROM
+  user_month_base umb
+LEFT JOIN
+  user_summary us
+ON umb.user_id = us.user_id
+  AND umb.year_month = us.order_year_month
+ORDER BY
+  user_id, year_month

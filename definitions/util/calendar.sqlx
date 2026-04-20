@@ -1,0 +1,59 @@
+config {
+    type: "view",
+    database: "project-b5514482-febd-4435-998",
+    schema: "look_util",
+    name: "calendar",
+}
+
+WITH day AS (
+  SELECT
+    calendar_date
+  FROM
+    UNNEST(GENERATE_DATE_ARRAY('2018-01-01', '2024-12-31', INTERVAL 1 DAY)) AS calendar_date
+)
+
+
+SELECT
+  calendar_date,
+  CASE EXTRACT(DAYOFWEEK FROM calendar_date)
+    WHEN 1 THEN "1_日曜日"
+    WHEN 2 THEN "2_月曜日"
+    WHEN 3 THEN "3_火曜日"
+    WHEN 4 THEN "4_水曜日"
+    WHEN 5 THEN "5_木曜日"
+    WHEN 6 THEN "6_金曜日"
+    WHEN 7 THEN "7_土曜日"
+  END AS day_of_week_num_ja,
+    CASE EXTRACT(DAYOFWEEK FROM calendar_date)
+    WHEN 1 THEN "日曜日"
+    WHEN 2 THEN "月曜日"
+    WHEN 3 THEN "火曜日"
+    WHEN 4 THEN "水曜日"
+    WHEN 5 THEN "木曜日"
+    WHEN 6 THEN "金曜日"
+    WHEN 7 THEN "土曜日"
+  END AS day_of_week_ja,
+  EXTRACT(DAYOFWEEK FROM calendar_date) AS day_of_week_num,
+  FORMAT_DATE('%A', calendar_date) AS day_of_week_en,
+  CASE
+    WHEN EXTRACT(DAYOFWEEK FROM calendar_date) IN (1, 7)
+      OR bqfunc.holidays_in_japan__asia_northeast1.holiday_name(calendar_date) IS NOT NULL
+    THEN 'Holiday'
+    ELSE 'Weekday'
+  END AS weekday_holiday,
+  FORMAT_DATE('%G-%V', calendar_date) AS year_week,
+  FORMAT_DATE('%Y-%m', calendar_date) AS year_month,
+  CONCAT(
+    FORMAT_DATE('%Y', calendar_date),
+    '-Q',
+    CAST(EXTRACT(QUARTER FROM calendar_date) AS STRING)
+  ) AS year_quarter,
+  FORMAT_DATE('%m', calendar_date) AS month,
+  CONCAT(
+    'Q',
+    CAST(EXTRACT(QUARTER FROM calendar_date) AS STRING)
+  ) AS quarter,
+  FORMAT_DATE('%Y', calendar_date) AS year
+FROM
+  day
+

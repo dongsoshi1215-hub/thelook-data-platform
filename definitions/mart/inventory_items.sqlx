@@ -1,0 +1,56 @@
+config {
+    type: "view",
+    database: "project-b5514482-febd-4435-998",
+    schema: "look_mart",
+    name: "inventory_items",
+}
+
+SELECT
+  -- inventory_items
+  ii.id AS inventory_item_id,
+  ii.product_id,
+  ii.product_category,
+  ii.product_name,
+  ii.product_brand,
+  ii.product_department,
+  ii.product_sku,
+  ii.cost,
+  ii.product_retail_price,
+  ii.created_at,
+  ii.sold_at,
+  ii.created_date,
+  ii.sold_date,
+  ii.product_distribution_center_id,
+  -- 仕入れてから売れるまでの日数・週数・月数
+  DATE_DIFF(ii.sold_date, ii.created_date, DAY) AS inventory_to_sold_day,
+  DATE_DIFF(ii.sold_date, ii.created_date, WEEK) AS inventory_to_sold_week,
+  DATE_DIFF(ii.sold_date, ii.created_date, MONTH) AS inventory_to_sold_month,
+  -- 売れているかどうか
+  ii.sold_at IS NOT NULL AS is_sold,
+
+  -- distribution_centers
+  dc.name AS distribution_center_name,
+  dc.latitude AS distribution_center_latitude,
+  dc.longitude AS distribution_center_longitude,
+
+  -- calendar
+  c.day_of_week_num_ja AS inventory_day_of_week_num_ja,
+  c.day_of_week_ja AS inventory_day_of_week_ja,
+  c.day_of_week_num AS inventory_day_of_week_num,
+  c.day_of_week_en AS inventory_day_of_week_en,
+  c.weekday_holiday AS inventory_weekday_holiday,
+  c.year_week AS inventory_year_week,
+  c.year_month AS inventory_year_month,
+  c.year_quarter AS inventory_year_quarter,
+  c.month AS inventory_month,
+  c.quarter AS inventory_quarter,
+  c.year AS inventory_year
+
+FROM
+  `project-b5514482-febd-4435-998`.`look_adapter`.`inventory_items` AS ii
+LEFT JOIN
+  `project-b5514482-febd-4435-998`.`look_adapter`.`distribution_centers` AS dc
+  ON ii.product_distribution_center_id = dc.id
+LEFT JOIN
+  `project-b5514482-febd-4435-998`.`look_util`.`calendar` AS c
+  ON ii.created_date = c.calendar_date

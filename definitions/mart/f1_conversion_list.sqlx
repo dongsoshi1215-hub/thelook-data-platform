@@ -1,0 +1,16 @@
+config {
+    type: "view",
+    database: "project-b5514482-febd-4435-998",
+    schema: "look_mart",
+    name: "f1_conversion_list",
+}
+
+-- ユーザーごとの初回購入商品リスト
+SELECT
+  product_id,
+  order_year_month AS f1_year_month,
+  user_id
+FROM
+  `project-b5514482-febd-4435-998.look_wide.orders`
+WHERE
+  user_order_count = 1

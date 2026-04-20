@@ -1,0 +1,25 @@
+config {
+    type: "view",
+    database: "project-b5514482-febd-4435-998",
+    schema: "look_adapter",
+    name: "inventory_items",
+}
+
+SELECT
+  id,
+  product_id,
+  DATETIME(created_at, "Asia/Tokyo") AS created_at,
+  DATETIME(sold_at, "Asia/Tokyo") AS sold_at,
+  cost,
+  product_category,
+  product_name,
+  product_brand,
+  product_retail_price,
+  product_department,
+  product_sku,
+  product_distribution_center_id,
+  DATE(created_at, "Asia/Tokyo") AS created_date,
+  DATE(sold_at, "Asia/Tokyo") AS sold_date
+FROM
+  ${ref("look_raw", "inventory_items")}
+

@@ -1,0 +1,31 @@
+config {
+    type: "view",
+    database: "project-b5514482-febd-4435-998",
+    schema: "look_util",
+    name: "temp_item_first_orders",
+}
+
+SELECT
+  order_item_id,
+  order_id,
+  user_id,
+  product_id,
+  inventory_item_id,
+  status,
+  created_at,
+  shipped_at,
+  delivered_at,
+  returned_at,
+  sale_price,
+  created_date,
+  shipped_date,
+  delivered_date,
+  returned_date,
+  item_order_count,
+  order_year_month AS item_first_order_year_month,
+  order_year_week AS item_first_order_year_week,
+  order_day AS item_first_order_day
+FROM
+    `project-b5514482-febd-4435-998.look_util.order_items_sequence`
+WHERE
+  item_order_count = 1

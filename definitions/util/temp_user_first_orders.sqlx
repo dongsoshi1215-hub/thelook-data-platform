@@ -1,0 +1,29 @@
+config {
+    type: "view",
+    database: "project-b5514482-febd-4435-998",
+    schema: "look_util",
+    name: "temp_user_first_orders",
+}
+
+SELECT
+  order_id,
+  user_id,
+  status,
+  gender,
+  created_at,
+  returned_at,
+  shipped_at,
+  delivered_at,
+  num_of_item,
+  created_date,
+  returned_date,
+  shipped_date,
+  delivered_date,
+  user_order_count,
+  order_year_month AS user_first_order_year_month,
+  order_year_week AS user_first_order_year_week,
+  order_day AS user_first_order_day
+FROM
+    `project-b5514482-febd-4435-998.look_util.orders_sequence`
+WHERE
+  user_order_count = 1

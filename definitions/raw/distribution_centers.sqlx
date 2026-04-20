@@ -1,0 +1,12 @@
+config {
+    type: "declaration",
+    database: "project-b5514482-febd-4435-998",
+    schema: "look_raw",
+    name: "distribution_centers",
+}
+
+SELECT
+    *
+FROM
+    `project-b5514482-febd-4435-998.look_raw.distribution_centers`
+

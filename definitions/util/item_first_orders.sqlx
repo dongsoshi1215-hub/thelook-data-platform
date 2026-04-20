@@ -1,0 +1,26 @@
+config {
+    type: "view",
+    database: "project-b5514482-febd-4435-998",
+    schema: "look_util",
+    name: "item_first_orders",
+}
+
+SELECT
+  p.id AS product_id,
+  tifo.order_id AS first_order_id,
+  -- いただいたコメントをもとに修正(251214追記)※いただいたコメント
+  -- CASE
+  --   WHEN tifo.order_id IS NOT NULL THEN TRUE
+  --   ELSE FALSE
+  -- END AS is_item_first_order,
+  tifo.order_id IS NOT NULL AS is_item_first_order,
+  item_first_order_year_month,
+  item_first_order_year_week,
+  item_first_order_day
+FROM
+  `project-b5514482-febd-4435-998.look_adapter.products` AS p
+LEFT JOIN
+  `project-b5514482-febd-4435-998.look_util.temp_item_first_orders` AS tifo
+ON
+  p.id = tifo.product_id
+

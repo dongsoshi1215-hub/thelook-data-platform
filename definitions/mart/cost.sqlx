@@ -1,0 +1,72 @@
+config {
+    type: "view",
+    database: "project-b5514482-febd-4435-998",
+    schema: "look_mart",
+    name: "cost",
+}
+
+WITH monthly_orders AS (
+  SELECT
+    order_year_month AS year_month,
+    SUM(retail_price) AS sales,
+    SUM(shipping_fee) AS total_shipping_fee
+  FROM
+    `project-b5514482-febd-4435-998.look_mart.orders_cost`
+  GROUP BY
+    order_year_month
+),
+
+monthly_inventory_cost AS (
+  SELECT
+    inventory_year_month AS year_month,
+    SUM(cost) AS total_inventory_cost
+  FROM
+    `project-b5514482-febd-4435-998.look_mart.inventory_items`
+  GROUP BY
+    inventory_year_month
+),
+
+monthly_facility_labor AS (
+  SELECT
+    base_year_month AS year_month,
+    total_facility_rent,
+    total_labor_cost
+  FROM
+    `project-b5514482-febd-4435-998.look_mart.facility_and_labor_cost`
+),
+
+monthly_ad_cost AS (
+  SELECT
+    registration_year_month AS year_month,
+    SUM(user_acquisition_cost) AS total_user_acquisition_cost
+  FROM
+    `project-b5514482-febd-4435-998.look_mart.users`
+  GROUP BY
+    registration_year_month
+)
+
+SELECT
+  o.year_month,
+  o.sales,
+  i.total_inventory_cost,
+  o.total_shipping_fee,
+  f.total_facility_rent,
+  200 AS server_cost,
+  f.total_labor_cost,
+  a.total_user_acquisition_cost
+FROM
+  monthly_orders AS o
+LEFT JOIN
+  monthly_inventory_cost AS i
+ON
+  o.year_month = i.year_month
+LEFT JOIN
+  monthly_facility_labor AS f
+ON
+  o.year_month = f.year_month
+LEFT JOIN
+  monthly_ad_cost AS a
+ON
+  o.year_month = a.year_month
+ORDER BY
+  o.year_month

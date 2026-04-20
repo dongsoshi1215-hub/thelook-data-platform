@@ -1,0 +1,76 @@
+config {
+    type: "view",
+    database: "project-b5514482-febd-4435-998",
+    schema: "look_util",
+    name: "item_percentile_stats",
+}
+
+-- 購入年月ごとの集計
+WITH item_percentile_stats_month_rank AS (
+  SELECT
+    product_id,
+    order_year_month,
+    SUM(sale_price) AS item_percentile_month_amount,
+    NTILE(10) OVER (
+      PARTITION BY order_year_month
+      ORDER BY SUM(sale_price) DESC
+    ) * 10 AS item_percentile_month_rank
+  FROM
+    `project-b5514482-febd-4435-998.look_util.order_items_sequence`
+  GROUP BY
+    product_id,
+    order_year_month
+),
+item_percentile_stats_month AS (
+  SELECT
+    product_id,
+    order_year_month,
+    item_percentile_month_rank,
+    item_percentile_month_amount,
+    MIN(item_percentile_month_amount) OVER (
+      PARTITION BY
+        order_year_month,
+        item_percentile_month_rank
+    ) AS item_percentile_month_base
+  FROM
+    item_percentile_stats_month_rank
+),
+-- トータルの集計
+item_percentile_stats_total_rank AS (
+  SELECT
+    product_id,
+    SUM(sale_price) AS item_percentile_total_amount,
+    NTILE(10) OVER (
+      ORDER BY SUM(sale_price) DESC
+    ) * 10 AS item_percentile_total_rank
+  FROM
+    `project-b5514482-febd-4435-998.look_util.order_items_sequence`
+  GROUP BY
+    product_id
+),
+item_percentile_stats_total AS (
+SELECT
+  product_id,
+  item_percentile_total_rank,
+  item_percentile_total_amount,
+  MIN(item_percentile_total_amount) OVER (
+    PARTITION BY
+      item_percentile_total_rank
+  ) AS item_percentile_total_base
+FROM
+  item_percentile_stats_total_rank
+)
+SELECT
+  m.product_id,
+  m.order_year_month,
+  m.item_percentile_month_rank,
+  m.item_percentile_month_base,
+  t.item_percentile_total_rank,
+  t.item_percentile_total_base
+FROM
+  item_percentile_stats_month AS m
+INNER JOIN
+  item_percentile_stats_total AS t
+ON
+  m.product_id = t.product_id
+

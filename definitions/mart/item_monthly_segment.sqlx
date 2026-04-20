@@ -1,0 +1,115 @@
+config {
+    type: "view",
+    database: "project-b5514482-febd-4435-998",
+    schema: "look_mart",
+    name: "item_monthly_segment",
+}
+
+WITH item_monthly_summary AS (
+  SELECT
+    t.product_id,
+    t.product_name,
+    t.product_department,
+    t.product_category,
+    t.product_brand,
+    t.year_month,
+    t.order_count,
+    t.avg_amount,
+    t.total_amount,
+    SUM(t2.total_amount) AS total_amount_12m,
+    SUM(t2.order_count) AS total_orders_12m,
+    SAFE_DIVIDE(
+      SUM(t2.total_amount), 
+      NULLIF(SUM(t2.order_count), 0)
+    ) AS avg_amount_12m,
+    MIN(
+      CASE WHEN t2.order_count > 0 THEN
+        DATE_DIFF(
+          PARSE_DATE('%Y-%m', t.year_month),
+          PARSE_DATE('%Y-%m', t2.year_month),
+          MONTH
+        )
+      END
+    ) AS months_since_last_order
+  FROM
+    `project-b5514482-febd-4435-998.look_mart.item_monthly_purchase_summary` t
+  LEFT JOIN
+    `project-b5514482-febd-4435-998.look_mart.item_monthly_purchase_summary` t2
+    ON t.product_id = t2.product_id
+    AND t2.year_month <= t.year_month
+    AND t2.year_month > FORMAT_DATE('%Y-%m', 
+        DATE_SUB(PARSE_DATE('%Y-%m', t.year_month), INTERVAL 12 MONTH))
+  GROUP BY
+    t.product_id,
+    t.product_name,
+    t.product_department,
+    t.product_category,
+    t.product_brand,
+    t.year_month,
+    t.order_count,
+    t.avg_amount,
+    t.total_amount
+),
+
+f1_monthly_count AS (
+  SELECT
+    product_id,
+    f1_year_month AS year_month,
+    COUNT(*) AS f1_conversion_count
+  FROM
+    `project-b5514482-febd-4435-998.look_mart.f1_conversion_list`
+  GROUP BY
+    product_id,
+    f1_year_month
+)
+
+SELECT
+  i.product_id,
+  i.product_name,
+  i.product_department,
+  i.product_category,
+  i.product_brand,
+  i.year_month,
+  i.order_count,
+  i.avg_amount,
+  i.total_amount,
+  i.total_amount_12m,
+  i.total_orders_12m,
+  i.avg_amount_12m,
+  i.months_since_last_order,
+  CASE
+    WHEN i.total_amount_12m >= 270
+      AND i.total_orders_12m >= 5
+      AND i.avg_amount_12m >= 80
+      AND i.months_since_last_order <= 1
+    THEN 'A'
+    WHEN i.total_amount_12m >= 120
+      AND i.total_orders_12m >= 3
+      AND i.avg_amount_12m >= 40
+      AND i.months_since_last_order <= 2
+    THEN 'B'
+    ELSE 'C'
+  END AS abc_rank,
+  COALESCE(m.f1_conversion_count, 0) AS f1_conversion_count,
+  COALESCE(f.f1_conversion_count_6m, 0) AS f1_conversion_count_6m,
+  COALESCE(f.f1_conversion_count_6m_new, 0) AS f1_conversion_count_6m_new,
+  COALESCE(f.f1_conversion_count_6m_repeater, 0) AS f1_conversion_count_6m_repeater,
+  COALESCE(f.f1_conversion_count_6m_loyal, 0) AS f1_conversion_count_6m_loyal,
+  COALESCE(f.f1_conversion_count_6m_churned, 0) AS f1_conversion_count_6m_churned,
+  COALESCE(f.f1_conversion_count_6m_returned, 0) AS f1_conversion_count_6m_returned,
+  COALESCE(f.remaining_customer_count, 0) AS remaining_customer_count,
+  COALESCE(f.remaining_customer_orders, 0) AS remaining_customer_orders,
+  COALESCE(f.remaining_customer_ltv, 0) AS remaining_customer_ltv
+FROM
+  item_monthly_summary i
+LEFT JOIN
+  f1_monthly_count m
+ON i.product_id = m.product_id
+  AND i.year_month = m.year_month
+LEFT JOIN
+  `project-b5514482-febd-4435-998.look_mart.f1_segment_summary` f
+ON i.product_id = f.product_id
+  AND i.year_month = f.year_month
+ORDER BY
+  i.product_id,
+  i.year_month

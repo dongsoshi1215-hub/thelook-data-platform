@@ -1,0 +1,50 @@
+config {
+    type: "view",
+    database: "project-b5514482-febd-4435-998",
+    schema: "look_mart",
+    name: "orders_cost",
+}
+
+WITH constants AS (
+  SELECT
+    6371 AS earth_radius_km,
+    ACOS(-1) AS pi,
+    12.56 AS shipping_base_fee,
+    0.0018 AS shipping_rate_per_km,
+    1.2 AS road_distance_multiplier
+)
+
+SELECT
+  o.*,
+  u.latitude AS user_latitude,
+  u.longitude AS user_longitude,
+
+  -- 配送直線距離（D = R × cos⁻¹(sin y1 sin y2 + cos y1 cos y2 cos Δx)）
+  c.earth_radius_km * ACOS(
+    SIN(o.distribution_center_latitude * c.pi / 180)
+    * SIN(u.latitude * c.pi / 180)
+    + COS(o.distribution_center_latitude * c.pi / 180)
+    * COS(u.latitude * c.pi / 180)
+    * COS((u.longitude - o.distribution_center_longitude) * c.pi / 180)
+  ) AS straight_line_distance_km,
+
+  -- 配送料
+  ROUND(
+    c.shipping_base_fee
+    + c.shipping_rate_per_km * c.road_distance_multiplier * c.earth_radius_km * ACOS(
+      SIN(o.distribution_center_latitude * c.pi / 180)
+      * SIN(u.latitude * c.pi / 180)
+      + COS(o.distribution_center_latitude * c.pi / 180)
+      * COS(u.latitude * c.pi / 180)
+      * COS((u.longitude - o.distribution_center_longitude) * c.pi / 180)
+    ), 2
+  ) AS shipping_fee
+
+FROM
+  `project-b5514482-febd-4435-998.look_mart.orders` AS o
+LEFT JOIN
+  `project-b5514482-febd-4435-998.look_raw.users` AS u
+ON
+  o.user_id = u.id
+CROSS JOIN
+  constants AS c

@@ -1,0 +1,39 @@
+config {
+    type: "view",
+    database: "project-b5514482-febd-4435-998",
+    schema: "look_mart",
+    name: "user_order_summary",
+}
+
+WITH user_order_summary AS (
+  SELECT
+    u.id AS user_id,
+    u.created_date AS registration_date,
+    COUNT(DISTINCT o.order_id) AS order_count,
+    MIN(o.order_created_date) AS first_order_date
+  FROM
+    `project-b5514482-febd-4435-998.look_adapter.users` AS u
+  LEFT JOIN
+    `project-b5514482-febd-4435-998.look_wide.orders` AS o
+  ON u.id = o.user_id
+  GROUP BY
+    u.id, u.created_date
+),
+max_order AS (
+  SELECT MAX(order_count) AS max_count FROM user_order_summary
+),
+f_ranks AS (
+  SELECT f_rank
+  FROM max_order, UNNEST(GENERATE_ARRAY(0, max_count)) AS f_rank
+)
+SELECT
+  f.f_rank,
+  COUNTIF(u.order_count >= f.f_rank) AS user_count
+FROM
+  f_ranks AS f
+CROSS JOIN
+  user_order_summary AS u
+GROUP BY
+  f.f_rank
+ORDER BY
+  f.f_rank

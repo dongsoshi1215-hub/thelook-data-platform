@@ -1,0 +1,26 @@
+config {
+    type: "view",
+    database: "project-b5514482-febd-4435-998",
+    schema: "look_adapter",
+    name: "order_items",
+}
+
+SELECT
+  id,
+  order_id,
+  user_id,
+  product_id,
+  inventory_item_id,
+  status,
+  DATETIME(created_at, "Asia/Tokyo") AS created_at,
+  DATETIME(shipped_at, "Asia/Tokyo") AS shipped_at,
+  DATETIME(delivered_at, "Asia/Tokyo") AS delivered_at,
+  DATETIME(returned_at, "Asia/Tokyo") AS returned_at,
+  sale_price,
+  DATE(created_at, "Asia/Tokyo") AS created_date,
+  DATE(shipped_at, "Asia/Tokyo") AS shipped_date,
+  DATE(delivered_at, "Asia/Tokyo") AS delivered_date,
+  DATE(returned_at, "Asia/Tokyo") AS returned_date
+FROM
+  ${ref("look_raw", "order_items")}
+

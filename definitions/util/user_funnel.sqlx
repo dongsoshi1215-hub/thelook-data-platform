@@ -1,0 +1,75 @@
+config {
+    type: "view",
+    database: "project-b5514482-febd-4435-998",
+    schema: "look_util",
+    name: "user_funnel",
+}
+
+-- f1
+WITH user_funnel_f1 AS (
+SELECT
+  user_id,
+  STRING_AGG(product_name, '、' ORDER BY order_item_id) AS user_f1_item_name,
+  SUM(sale_price) AS user_f1_item_price,
+  MIN(order_day) AS user_f1_day
+FROM
+  `project-b5514482-febd-4435-998.look_util.order_items_sequence`
+WHERE
+  user_order_count = 1
+GROUP BY
+  user_id
+),
+-- f2
+user_funnel_f2 AS (
+SELECT
+  user_id,
+  STRING_AGG(product_name, '、' ORDER BY order_item_id) AS user_f2_item_name,
+  SUM(sale_price) AS user_f2_item_price,
+  MIN(order_day) AS user_f2_day
+FROM
+  `project-b5514482-febd-4435-998.look_util.order_items_sequence`
+WHERE
+  -- ▼注文回数の変更漏れのため修正(251213追記)※いただいたコメント
+  -- user_order_count = 1
+  user_order_count = 2
+GROUP BY
+  user_id
+),
+-- f3
+user_funnel_f3 AS (
+SELECT
+  user_id,
+  STRING_AGG(product_name, '、' ORDER BY order_item_id) AS user_f3_item_name,
+  SUM(sale_price) AS user_f3_item_price,
+  MIN(order_day) AS user_f3_day
+FROM
+  `project-b5514482-febd-4435-998.look_util.order_items_sequence`
+WHERE
+  -- ▼注文回数の変更漏れのため修正(251213追記)※いただいたコメント
+  -- user_order_count = 1
+  user_order_count = 3
+GROUP BY
+  user_id
+)
+SELECT
+  f1.user_id,
+  f1.user_f1_item_name,
+  f1.user_f1_item_price,
+  f1.user_f1_day,
+  f2.user_f2_item_name,
+  f2.user_f2_item_price,
+  f2.user_f2_day,
+  f3.user_f3_item_name,
+  f3.user_f3_item_price,
+  f3.user_f3_day
+FROM
+  user_funnel_f1 AS f1
+LEFT JOIN
+  user_funnel_f2 AS f2
+ON
+  f1.user_id = f2.user_id
+LEFT JOIN
+  user_funnel_f3 AS f3
+ON
+  f1.user_id = f3.user_id
+

@@ -1,0 +1,165 @@
+config {
+    type: "view",
+    database: "project-b5514482-febd-4435-998",
+    schema: "look_mart",
+    name: "orders",
+}
+
+WITH base_total AS (
+  SELECT
+    COUNT(DISTINCT user_id) AS base_uu_total
+  FROM
+    `project-b5514482-febd-4435-998.look_wide.orders`
+  WHERE
+    user_order_cohort_month = 0
+),
+base_gender AS (
+  SELECT
+    user_gender,
+    COUNT(DISTINCT user_id) AS base_uu_gender
+  FROM
+    `project-b5514482-febd-4435-998.look_wide.orders`
+  WHERE
+    user_order_cohort_month = 0
+  GROUP BY
+    user_gender
+),
+base_age AS (
+  SELECT
+    user_age_group,
+    COUNT(DISTINCT user_id) AS base_uu_age
+  FROM
+    `project-b5514482-febd-4435-998.look_wide.orders`
+  WHERE
+    user_order_cohort_month = 0
+  GROUP BY
+    user_age_group
+),
+base_product_total AS (
+  SELECT
+    COUNT(DISTINCT product_id) AS base_product_total
+  FROM
+    `project-b5514482-febd-4435-998.look_wide.orders`
+  WHERE
+    item_order_cohort_month = 0
+),
+base_product_department AS (
+  SELECT
+    product_department,
+    COUNT(DISTINCT product_id) AS base_product_department
+  FROM
+    `project-b5514482-febd-4435-998.look_wide.orders`
+  WHERE
+    item_order_cohort_month = 0
+  GROUP BY
+    product_department
+),
+base_product_category AS (
+  SELECT
+    product_category,
+    COUNT(DISTINCT product_id) AS base_product_category
+  FROM
+    `project-b5514482-febd-4435-998.look_wide.orders`
+  WHERE
+    item_order_cohort_month = 0
+  GROUP BY
+    product_category
+),
+-- 併売フラグ（注文ごとの商品点数と2点以上フラグ）
+multi_item_orders AS (
+  SELECT
+    order_id,
+    COUNT(DISTINCT product_id) AS order_item_count,
+    COUNT(DISTINCT product_id) >= 2 AS is_multi_item
+  FROM
+    `project-b5514482-febd-4435-998.look_wide.orders`
+  GROUP BY
+    order_id
+)
+
+SELECT
+  o.*,
+  dpc.prior_customer_count,
+  dpc.prior_complete_customer_count,
+  t.base_uu_total,
+  g.base_uu_gender,
+  a.base_uu_age,
+  pt.base_product_total,
+  pd.base_product_department,
+  pc.base_product_category,
+  m.order_item_count,
+  m.is_multi_item,
+
+-- 会員登録日カレンダー
+  c1.day_of_week_num_ja AS registration_day_of_week_num_ja,
+  c1.day_of_week_ja AS registration_day_of_week_ja,
+  c1.day_of_week_num AS registration_day_of_week_num,
+  c1.day_of_week_en AS registration_day_of_week_en,
+  c1.weekday_holiday AS registration_weekday_holiday,
+  c1.year_week AS registration_year_week,
+  c1.year_month AS registration_year_month,
+  c1.year_quarter AS registration_year_quarter,
+  c1.month AS registration_month,
+  c1.quarter AS registration_quarter,
+  c1.year AS registration_year,
+
+  -- 返品日カレンダー
+  c2.day_of_week_num_ja AS return_day_of_week_num_ja,
+  c2.day_of_week_ja AS return_day_of_week_ja,
+  c2.day_of_week_num AS return_day_of_week_num,
+  c2.day_of_week_en AS return_day_of_week_en,
+  c2.weekday_holiday AS return_weekday_holiday,
+  c2.year_week AS return_year_week,
+  c2.year_month AS return_year_month,
+  c2.year_quarter AS return_year_quarter,
+  c2.month AS return_month,
+  c2.quarter AS return_quarter,
+  c2.year AS return_year,
+  
+  -- 仕入日カレンダー
+  c3.day_of_week_num_ja AS inventory_day_of_week_num_ja,
+  c3.day_of_week_ja AS inventory_day_of_week_ja,
+  c3.day_of_week_num AS inventory_day_of_week_num,
+  c3.day_of_week_en AS inventory_day_of_week_en,
+  c3.weekday_holiday AS inventory_weekday_holiday,
+  c3.year_week AS inventory_year_week,
+  c3.year_month AS inventory_year_month,
+  c3.year_quarter AS inventory_year_quarter,
+  c3.month AS inventory_month,
+  c3.quarter AS inventory_quarter,
+  c3.year AS inventory_year
+
+FROM
+  `project-b5514482-febd-4435-998.look_wide.orders` AS o
+LEFT JOIN
+  `project-b5514482-febd-4435-998.look_mart.daily_prior_customer_count` AS dpc
+ON
+  o.order_created_date = dpc.order_created_date
+CROSS JOIN
+  base_total AS t
+CROSS JOIN
+  base_product_total AS pt
+LEFT JOIN
+  base_gender AS g
+ON o.user_gender = g.user_gender
+LEFT JOIN
+  base_age AS a
+ON o.user_age_group = a.user_age_group
+LEFT JOIN
+  base_product_department AS pd
+ON o.product_department = pd.product_department
+LEFT JOIN
+  base_product_category AS pc
+ON o.product_category = pc.product_category
+LEFT JOIN
+  multi_item_orders AS m
+ON o.order_id = m.order_id
+LEFT JOIN
+  `project-b5514482-febd-4435-998.look_util.calendar` AS c1
+ON o.user_created_date = c1.calendar_date
+LEFT JOIN
+  `project-b5514482-febd-4435-998.look_util.calendar` AS c2
+ON o.order_returned_date = c2.calendar_date
+LEFT JOIN
+  `project-b5514482-febd-4435-998.look_util.calendar` AS c3
+ON o.inventory_item_created_date = c3.calendar_date

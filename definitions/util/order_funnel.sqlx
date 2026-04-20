@@ -1,0 +1,38 @@
+config {
+    type: "view",
+    database: "project-b5514482-febd-4435-998",
+    schema: "look_util",
+    name: "order_funnel",
+}
+
+SELECT
+  order_id,
+  order_year_month,
+  order_year_week,
+  order_day,
+  -- いただいたコメントを元に修正(251214追記)※いただいたコメント
+  -- CASE
+  --   WHEN created_at IS NOT NULL THEN TRUE
+  --   ELSE FALSE
+  -- END is_ordered,
+  created_at IS NOT NULL AS is_ordered,
+  -- CASE
+  --   WHEN returned_at IS NOT NULL THEN TRUE
+  --   ELSE FALSE
+  -- END is_returned,
+  returned_at IS NOT NULL AS is_returned,
+  -- CASE
+  --   WHEN shipped_at IS NOT NULL THEN TRUE
+  --   ELSE FALSE
+  -- END is_shipped,
+  shipped_at IS NOT NULL AS is_shipped,
+  -- CASE
+  --   WHEN delivered_at IS NOT NULL THEN TRUE
+  --   ELSE FALSE
+  -- END is_delivered,
+  delivered_at IS NOT NULL AS is_delivered,
+  DATE_DIFF(shipped_date, created_date, DAY) AS shipped_day_after_order,
+  DATE_DIFF(delivered_date, created_date, DAY) AS delivered_day_after_order,
+  DATE_DIFF(returned_date, created_date, DAY) AS returned_day_after_order
+FROM
+  `project-b5514482-febd-4435-998.look_util.orders_sequence`

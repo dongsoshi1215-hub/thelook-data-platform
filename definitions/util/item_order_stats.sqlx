@@ -1,0 +1,35 @@
+config {
+    type: "view",
+    database: "project-b5514482-febd-4435-998",
+    schema: "look_util",
+    name: "item_order_stats",
+}
+
+SELECT
+  -- product_id、order_idが一意になっていないためorder_item_idを追加(251214追記)
+  ois.order_item_id,
+  ois.product_id,
+  ois.order_id,
+  ois.order_year_month,
+  ois.item_order_count,
+  DATE_DIFF(
+    DATE(order_day),
+    DATE(item_first_order_day),
+    MONTH
+  ) AS item_order_cohort_month,
+  DATE_DIFF(
+    DATE(order_day),
+    DATE(item_first_order_day),
+    WEEK
+  ) AS item_order_cohort_week,
+  DATE_DIFF(
+    DATE(order_day),
+    DATE(item_first_order_day),
+    DAY
+  ) AS item_order_cohort_day
+FROM
+  `project-b5514482-febd-4435-998.look_util.order_items_sequence` AS ois
+INNER JOIN
+  `project-b5514482-febd-4435-998.look_util.temp_item_first_orders` AS tifo
+ON
+  ois.product_id = tifo.product_id

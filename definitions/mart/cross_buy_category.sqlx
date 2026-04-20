@@ -1,0 +1,42 @@
+config {
+    type: "view",
+    database: "project-b5514482-febd-4435-998",
+    schema: "look_mart",
+    name: "cross_buy_category",
+}
+
+WITH base AS (
+  SELECT
+    ROW_NUMBER() OVER () AS row_id,
+    order_id,
+    CASE
+      WHEN product_category IN ('Tops & Tees', 'Sweaters', 'Fashion Hoodies & Sweatshirts') THEN 'Tops'
+      WHEN product_category IN ('Pants', 'Pants & Capris', 'Jeans', 'Shorts', 'Leggings', 'Skirts') THEN 'Bottoms'
+      WHEN product_category IN ('Outerwear & Coats', 'Blazers & Jackets') THEN 'Outer'
+      WHEN product_category IN ('Dresses', 'Suits', 'Suits & Sport Coats') THEN 'Dresses & Suits'
+      WHEN product_category IN ('Jumpsuits & Rompers', 'Clothing Sets') THEN 'Jumpsuits & Sets'
+      WHEN product_category IN ('Underwear', 'Intimates', 'Sleep & Lounge', 'Socks', 'Socks & Hosiery') THEN 'Innerwear & Lounge'
+      WHEN product_category IN ('Swim', 'Active') THEN 'Swim & Active'
+      WHEN product_category = 'Maternity' THEN 'Maternity'
+      WHEN product_category = 'Plus' THEN 'Plus Size'
+      WHEN product_category = 'Accessories' THEN 'Accessories'
+      ELSE 'Others'
+    END AS product_category_group
+  FROM `project-b5514482-febd-4435-998.look_wide.orders`
+)
+
+SELECT
+  LEAST(a.product_category_group, b.product_category_group) AS category_group_1,
+  GREATEST(a.product_category_group, b.product_category_group) AS category_group_2,
+  COUNT(*) AS pair_count
+FROM
+  base a
+JOIN
+  base b
+ON
+  a.order_id = b.order_id
+  AND a.row_id < b.row_id
+GROUP BY
+  category_group_1, category_group_2
+ORDER BY
+  pair_count DESC

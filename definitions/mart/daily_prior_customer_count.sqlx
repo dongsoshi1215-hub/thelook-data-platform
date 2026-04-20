@@ -1,0 +1,31 @@
+config {
+    type: "view",
+    database: "project-b5514482-febd-4435-998",
+    schema: "look_mart",
+    name: "daily_prior_customer_count",
+}
+
+-- その日までの顧客数を集計
+WITH daily_dates AS (
+  SELECT
+    DISTINCT order_created_date
+  FROM
+    `project-b5514482-febd-4435-998.look_wide.orders`
+)
+
+SELECT
+  d.order_created_date,
+  COUNT(DISTINCT o.user_id) AS prior_customer_count,
+  COUNT(
+    DISTINCT CASE WHEN o.order_status = 'Complete' THEN o.user_id ELSE NULL END
+  ) AS prior_complete_customer_count
+FROM
+  daily_dates d
+LEFT JOIN
+  `project-b5514482-febd-4435-998.look_wide.orders` o
+ON
+  o.order_created_date < d.order_created_date
+GROUP BY
+  d.order_created_date
+ORDER BY
+  d.order_created_date

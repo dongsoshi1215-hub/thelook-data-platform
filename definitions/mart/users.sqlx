@@ -1,0 +1,75 @@
+config {
+    type: "view",
+    database: "project-b5514482-febd-4435-998",
+    schema: "look_mart",
+    name: "users",
+}
+
+SELECT
+  -- adapterレイヤー「users」
+  -- utilレイヤー「user_age_groups」
+  u.id AS user_id,
+  u.first_name_hashed AS user_first_name_hashed,
+  u.last_name_hashed AS user_last_name_hashed,
+  u.email_hashed AS user_email_hashed,
+  u.age AS user_age,
+  uag.age_group AS user_age_group,
+  u.gender AS user_gender,
+  u.state AS user_state,
+  u.street_address_hashed AS user_street_address_hashed,
+  u.postal_code_hashed AS user_postal_code_hashed,
+  u.city AS user_city,
+  u.country AS user_country,
+  u.latitude_hashed AS user_latitude_hashed,
+  u.longitude_hashed AS user_longitude_hashed,
+  u.traffic_source AS user_traffic_source,
+  u.created_at AS user_created_at,
+  u.created_date AS user_created_date,
+
+  -- utilレイヤー「user_first_orders」
+  ufo.first_order_id,
+  -- 注文したかしてないか
+  ufo.first_order_id IS NOT NULL AS is_ordered,
+  ufo.is_user_first_order,
+  ufo.user_first_order_year_month,
+  ufo.user_first_order_year_week,
+  ufo.user_first_order_day,
+
+  -- utilレイヤー「calendar」
+  -- 会員登録日のカレンダー情報
+  c.day_of_week_num_ja AS registration_day_of_week_num_ja,
+  c.day_of_week_ja AS registration_day_of_week_ja,
+  c.day_of_week_num AS registration_day_of_week_num,
+  c.day_of_week_en AS registration_day_of_week_en,
+  c.weekday_holiday AS registration_weekday_holiday,
+  c.year_week AS registration_year_week,
+  c.year_month AS registration_year_month,
+  c.year_quarter AS registration_year_quarter,
+  c.month AS registration_month,
+  c.quarter AS registration_quarter,
+  c.year AS registration_year,
+
+  -- 会員登録から初回注文までの月数・週数・日数
+  DATE_DIFF(ufo.user_first_order_day, u.created_date, MONTH) AS registration_to_first_order_month,
+  DATE_DIFF(ufo.user_first_order_day, u.created_date, WEEK) AS registration_to_first_order_week,
+  DATE_DIFF(ufo.user_first_order_day, u.created_date, DAY) AS registration_to_first_order_day,
+
+  -- 広告宣伝費（会員登録1件あたりのCPL）
+  CASE u.traffic_source
+    WHEN 'Search' THEN 42.10
+    WHEN 'Display' THEN 39.48
+    WHEN 'Facebook' THEN 21.98
+    ELSE 0
+  END AS user_acquisition_cost
+
+FROM
+  `project-b5514482-febd-4435-998`.`look_adapter`.`users` AS u
+LEFT JOIN
+  `project-b5514482-febd-4435-998`.`look_util`.`user_first_orders` AS ufo
+  ON u.id = ufo.user_id
+LEFT JOIN
+  `project-b5514482-febd-4435-998`.`look_util`.`calendar` AS c
+  ON u.created_date = c.calendar_date
+LEFT JOIN
+  `project-b5514482-febd-4435-998`.`look_util`.`user_age_groups` AS uag
+  ON u.id = uag.user_id

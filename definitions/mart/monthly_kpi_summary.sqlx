@@ -1,0 +1,97 @@
+config {
+    type: "view",
+    database: "project-b5514482-febd-4435-998",
+    schema: "look_mart",
+    name: "monthly_kpi_summary",
+}
+
+WITH monthly_base AS (
+  SELECT
+    order_year_month,
+
+    -- 売上
+    SUM(sale_price) AS total_sales,
+    -- 顧客数
+    COUNT(DISTINCT user_id) AS user_count,
+    -- 新規顧客数
+    COUNT(
+      DISTINCT CASE WHEN user_order_count = 1 THEN user_id END
+    ) AS new_user_count,
+    -- リピート顧客数
+    COUNT(DISTINCT user_id) - 
+    COUNT(
+      DISTINCT CASE WHEN user_order_count = 1 THEN user_id END
+    ) AS repeat_user_count,
+    -- リピート顧客数（累計2回以上購入者）
+    COUNT(
+      DISTINCT CASE WHEN user_order_count >= 2 THEN user_id END
+    ) AS returning_user_count,
+    -- 初めてリピーターになった顧客数（2回目購入に到達）
+    COUNT(
+      DISTINCT CASE WHEN user_order_count = 2 THEN user_id END
+    ) AS new_repeat_user_count,
+    -- 顧客単価
+    SUM(sale_price) / COUNT(DISTINCT user_id) AS avg_sales_per_user,
+    -- 1人あたり平均注文数
+    COUNT(DISTINCT order_id) / COUNT(DISTINCT user_id) AS avg_orders_per_user,
+    -- 1注文あたり平均単価
+    SUM(sale_price) / COUNT(DISTINCT order_id) AS avg_sales_per_order,
+    -- 注文数
+    COUNT(DISTINCT order_id) AS order_count,
+    -- 仕入原価（販売基準）
+    SUM(product_cost) AS total_product_cost
+
+  FROM
+    `project-b5514482-febd-4435-998.look_wide.orders`
+  GROUP BY
+    order_year_month
+),
+
+inventory_cost AS (
+  -- 仕入原価（仕入基準）
+  SELECT
+    inventory_year_month,
+    SUM(cost) AS total_inventory_cost
+  FROM
+    `project-b5514482-febd-4435-998.look_mart.inventory_items`
+  GROUP BY
+    inventory_year_month
+)
+
+SELECT
+  mb.order_year_month,
+  mb.total_sales,
+  mb.user_count,
+  mb.new_user_count,
+  mb.repeat_user_count,
+  mb.returning_user_count,
+  mb.avg_sales_per_user,
+  mb.avg_orders_per_user,
+  mb.avg_sales_per_order,
+  mb.order_count,
+  -- 前月顧客数
+  LAG(mb.user_count, 1) OVER (ORDER BY mb.order_year_month) AS prev_month_user_count,
+  -- 当月継続率（リピート顧客数 / 前月顧客数）
+  SAFE_DIVIDE(
+    mb.repeat_user_count,
+    LAG(mb.user_count, 1) OVER (ORDER BY mb.order_year_month)
+  ) AS retention_rate,
+  -- 当月までの累計顧客数
+  SUM(mb.new_user_count) OVER (ORDER BY mb.order_year_month) AS cumulative_user_count,
+  -- 当月までの累計リピート顧客数
+  SUM(mb.new_repeat_user_count) OVER (ORDER BY mb.order_year_month) AS cumulative_repeat_user_count,
+  -- 累計リピート率
+  SAFE_DIVIDE(
+    SUM(mb.new_repeat_user_count) OVER (ORDER BY mb.order_year_month),
+    SUM(mb.new_user_count) OVER (ORDER BY mb.order_year_month)
+  ) AS cumulative_repeat_rate,
+  -- 仕入原価（販売基準）
+  mb.total_product_cost,
+  -- 仕入原価（仕入基準）
+  ic.total_inventory_cost
+FROM
+  monthly_base mb
+LEFT JOIN inventory_cost ic
+  ON mb.order_year_month = ic.inventory_year_month
+ORDER BY
+  mb.order_year_month

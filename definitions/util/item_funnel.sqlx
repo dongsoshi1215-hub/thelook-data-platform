@@ -1,0 +1,53 @@
+config {
+    type: "view",
+    database: "project-b5514482-febd-4435-998",
+    schema: "look_util",
+    name: "item_funnel",
+}
+
+-- f1
+WITH item_funnel_f1 AS (
+  SELECT
+    product_id,
+    order_day AS item_f1_day
+  FROM
+    `project-b5514482-febd-4435-998.look_util.order_items_sequence`
+  WHERE
+    item_order_count = 1
+),
+-- f2
+item_funnel_f2 AS (
+  SELECT
+    product_id,
+    order_day AS item_f2_day
+  FROM
+    `project-b5514482-febd-4435-998.look_util.order_items_sequence`
+  WHERE
+    item_order_count = 2
+),
+-- f3
+item_funnel_f3 AS (
+  SELECT
+    product_id,
+    order_day AS item_f3_day
+  FROM
+    `project-b5514482-febd-4435-998.look_util.order_items_sequence`
+  WHERE
+    item_order_count = 3
+)
+SELECT
+  f1.product_id,
+  f1.item_f1_day,
+  f2.item_f2_day,
+  f3.item_f3_day
+FROM
+  item_funnel_f1 AS f1
+LEFT JOIN
+  item_funnel_f2 AS f2
+ON
+  f1.product_id = f2.product_id
+LEFT JOIN
+  item_funnel_f3 AS f3
+ON
+  f1.product_id = f3.product_id
+

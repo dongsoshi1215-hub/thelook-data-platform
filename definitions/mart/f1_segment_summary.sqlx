@@ -1,0 +1,46 @@
+config {
+    type: "view",
+    database: "project-b5514482-febd-4435-998",
+    schema: "look_mart",
+    name: "f1_segment_summary",
+}
+
+-- 顧客f1リスト＋顧客ロイヤリティセグメント追加（6ヶ月分）
+WITH f1_conversion_with_segment AS (
+  SELECT
+    f.product_id,
+    f.f1_year_month,
+    f.user_id,
+    u.year_month AS base_year_month,
+    u.segment,
+    u.order_count,
+    u.total_amount
+  FROM
+    `project-b5514482-febd-4435-998.look_mart.f1_conversion_list` f
+  JOIN
+    `project-b5514482-febd-4435-998.look_mart.user_monthly_segment` u
+    ON f.user_id = u.user_id
+  WHERE
+    u.year_month >= f.f1_year_month
+    AND u.year_month <= FORMAT_DATE('%Y-%m', 
+        DATE_ADD(PARSE_DATE('%Y-%m', f.f1_year_month), INTERVAL 5 MONTH))
+)
+
+SELECT
+  product_id,
+  base_year_month AS year_month,
+  COUNT(*) AS f1_conversion_count_6m,
+  COUNTIF(segment = '新規顧客') AS f1_conversion_count_6m_new,
+  COUNTIF(segment = 'リピーター顧客') AS f1_conversion_count_6m_repeater,
+  COUNTIF(segment = 'ロイヤル顧客') AS f1_conversion_count_6m_loyal,
+  COUNTIF(segment = '離脱顧客') AS f1_conversion_count_6m_churned,
+  COUNTIF(segment = '復帰顧客') AS f1_conversion_count_6m_returned,
+  -- 残存顧客（リピーター＋ロイヤル＋復帰）の集計
+  COUNTIF(segment IN ('リピーター顧客', 'ロイヤル顧客', '復帰顧客')) AS remaining_customer_count,
+  SUM(CASE WHEN segment IN ('リピーター顧客', 'ロイヤル顧客', '復帰顧客') THEN order_count ELSE 0 END) AS remaining_customer_orders,
+  SUM(CASE WHEN segment IN ('リピーター顧客', 'ロイヤル顧客', '復帰顧客') THEN total_amount ELSE 0 END) AS remaining_customer_ltv
+FROM
+  f1_conversion_with_segment
+GROUP BY
+  product_id,
+  base_year_month

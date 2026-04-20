@@ -1,0 +1,274 @@
+config {
+    type: "view",
+    database: "project-b5514482-febd-4435-998",
+    schema: "look_mart",
+    name: "monthly_fact_summary",
+}
+
+-- 会員登録
+WITH registration AS (
+  SELECT 
+    FORMAT_DATE('%Y-%m', user_created_date) AS year_month,
+    COUNT(DISTINCT user_id) AS registration_count
+  FROM
+    `project-b5514482-febd-4435-998.look_wide.orders`
+  GROUP BY
+    FORMAT_DATE('%Y-%m', user_created_date)
+),
+-- 注文
+orders AS (
+  SELECT
+    order_year_month AS year_month,
+    SUM(sale_price) AS order_sales,
+    COUNT(DISTINCT order_id) AS order_count,
+    COUNT(DISTINCT user_id) AS order_user_count,
+    COUNT(DISTINCT product_id) AS order_product_count,
+    COUNT(*) AS order_item_count
+  FROM
+    `project-b5514482-febd-4435-998.look_wide.orders`
+  GROUP BY
+    order_year_month
+),
+-- 注文キャンセル
+cancelled AS (
+  SELECT
+    order_year_month AS year_month,
+    SUM(sale_price) AS cancelled_sales,
+    COUNT(DISTINCT order_id) AS cancelled_count,
+    COUNT(DISTINCT user_id) AS cancelled_user_count,
+    COUNT(DISTINCT product_id) AS cancelled_product_count,
+    COUNT(*) AS cancelled_item_count
+  FROM
+    `project-b5514482-febd-4435-998.look_wide.orders`
+  WHERE
+    order_status = 'Cancelled'
+  GROUP BY
+    order_year_month
+),
+-- 出荷
+shipped AS (
+  SELECT
+    order_year_month AS year_month,
+    COUNT(DISTINCT order_id) AS shipped_count,
+    COUNT(*) AS shipped_item_count
+  FROM
+    `project-b5514482-febd-4435-998.look_wide.orders`
+  WHERE
+    order_shipped_date IS NOT NULL
+  GROUP BY
+    order_year_month
+),
+-- 配送完了
+delivered AS (
+  SELECT
+    order_year_month AS year_month,
+    COUNT(DISTINCT order_id) AS delivered_count,
+    COUNT(*) AS delivered_item_count
+  FROM
+    `project-b5514482-febd-4435-998.look_wide.orders`
+  WHERE
+    order_delivered_date IS NOT NULL
+  GROUP BY
+    order_year_month
+),
+-- 返品
+returned AS (
+  SELECT
+    order_year_month AS year_month,
+    SUM(sale_price) AS returned_sales,
+    COUNT(DISTINCT order_id) AS returned_count,
+    COUNT(DISTINCT user_id) AS returned_user_count,
+    COUNT(DISTINCT product_id) AS returned_product_count,
+    COUNT(*) AS returned_item_count
+  FROM
+    `project-b5514482-febd-4435-998.look_wide.orders`
+  WHERE
+    order_returned_date IS NOT NULL
+  GROUP BY
+    order_year_month
+),
+-- 全年月のベース
+all_months AS (
+  SELECT
+    DISTINCT order_year_month AS year_month
+  FROM
+    `project-b5514482-febd-4435-998.look_wide.orders`
+),
+-- 結合
+monthly_fact_base AS (
+  SELECT
+    m.year_month,
+    
+    -- 会員登録
+    COALESCE(r.registration_count, 0) AS registration_count,
+    
+    -- 注文
+    COALESCE(o.order_sales, 0) AS order_sales,
+    COALESCE(o.order_count, 0) AS order_count,
+    COALESCE(o.order_user_count, 0) AS order_user_count,
+    COALESCE(o.order_product_count, 0) AS order_product_count,
+    COALESCE(o.order_item_count, 0) AS order_item_count,
+    
+    -- キャンセル
+    COALESCE(c.cancelled_sales, 0) AS cancelled_sales,
+    COALESCE(c.cancelled_count, 0) AS cancelled_count,
+    COALESCE(c.cancelled_user_count, 0) AS cancelled_user_count,
+    COALESCE(c.cancelled_product_count, 0) AS cancelled_product_count,
+    COALESCE(c.cancelled_item_count, 0) AS cancelled_item_count,
+    
+    -- 出荷
+    COALESCE(s.shipped_count, 0) AS shipped_count,
+    COALESCE(s.shipped_item_count, 0) AS shipped_item_count,
+    
+    -- 配送完了
+    COALESCE(d.delivered_count, 0) AS delivered_count,
+    COALESCE(d.delivered_item_count, 0) AS delivered_item_count,
+    
+    -- 返品
+    COALESCE(rt.returned_sales, 0) AS returned_sales,
+    COALESCE(rt.returned_count, 0) AS returned_count,
+    COALESCE(rt.returned_user_count, 0) AS returned_user_count,
+    COALESCE(rt.returned_product_count, 0) AS returned_product_count,
+    COALESCE(rt.returned_item_count, 0) AS returned_item_count
+
+  FROM
+    all_months m
+  LEFT JOIN 
+    registration r
+  ON m.year_month = r.year_month
+  LEFT JOIN 
+    orders o
+  ON m.year_month = o.year_month
+  LEFT JOIN 
+    cancelled c
+  ON m.year_month = c.year_month
+  LEFT JOIN 
+    shipped s
+  ON m.year_month = s.year_month
+  LEFT JOIN 
+    delivered d
+  ON m.year_month = d.year_month
+  LEFT JOIN 
+    returned rt
+  ON m.year_month = rt.year_month
+)
+
+SELECT
+  year_month,
+  
+  -- 会員登録
+  registration_count,
+  SAFE_DIVIDE(
+    registration_count,
+    LAG(registration_count, 1) OVER (ORDER BY year_month)
+  ) AS registration_mom,
+  
+  -- 注文（金額→件数→人数→商品数→商品点数）
+  order_sales,
+  SAFE_DIVIDE(
+    order_sales,
+    LAG(order_sales, 1) OVER (ORDER BY year_month)
+  ) AS order_sales_mom,
+  order_count,
+  SAFE_DIVIDE(
+    order_count,
+    LAG(order_count, 1) OVER (ORDER BY year_month)
+  ) AS order_count_mom,
+  order_user_count,
+  SAFE_DIVIDE(
+    order_user_count,
+    LAG(order_user_count, 1) OVER (ORDER BY year_month)
+  ) AS order_user_count_mom,
+  order_product_count,
+  SAFE_DIVIDE(
+    order_product_count,
+    LAG(order_product_count, 1) OVER (ORDER BY year_month)
+  ) AS order_product_count_mom,
+  order_item_count,
+  SAFE_DIVIDE(
+    order_item_count,
+    LAG(order_item_count, 1) OVER (ORDER BY year_month)
+  ) AS order_item_count_mom,
+  
+  -- キャンセル（金額→件数→人数→商品数→商品点数）
+  cancelled_sales,
+  SAFE_DIVIDE(
+    cancelled_sales,
+    LAG(cancelled_sales, 1) OVER (ORDER BY year_month)
+  ) AS cancelled_sales_mom,
+  cancelled_count,
+  SAFE_DIVIDE(
+    cancelled_count,
+    LAG(cancelled_count, 1) OVER (ORDER BY year_month)
+  ) AS cancelled_count_mom,
+  cancelled_user_count,
+  SAFE_DIVIDE(
+    cancelled_user_count,
+    LAG(cancelled_user_count, 1) OVER (ORDER BY year_month)
+  ) AS cancelled_user_count_mom,
+  cancelled_product_count,
+  SAFE_DIVIDE(
+    cancelled_product_count,
+    LAG(cancelled_product_count, 1) OVER (ORDER BY year_month)
+  ) AS cancelled_product_count_mom,
+  cancelled_item_count,
+  SAFE_DIVIDE(
+    cancelled_item_count,
+    LAG(cancelled_item_count, 1) OVER (ORDER BY year_month)
+  ) AS cancelled_item_count_mom,
+  
+  -- 出荷（件数→商品点数）
+  shipped_count,
+  SAFE_DIVIDE(
+    shipped_count,
+    LAG(shipped_count, 1) OVER (ORDER BY year_month)
+  ) AS shipped_count_mom,
+  shipped_item_count,
+  SAFE_DIVIDE(
+    shipped_item_count,
+    LAG(shipped_item_count, 1) OVER (ORDER BY year_month)
+  ) AS shipped_item_count_mom,
+  
+  -- 配送完了（件数→商品点数）
+  delivered_count,
+  SAFE_DIVIDE(
+    delivered_count,
+    LAG(delivered_count, 1) OVER (ORDER BY year_month)
+  ) AS delivered_count_mom,
+  delivered_item_count,
+  SAFE_DIVIDE(
+    delivered_item_count,
+    LAG(delivered_item_count, 1) OVER (ORDER BY year_month)
+  ) AS delivered_item_count_mom,
+  
+  -- 返品（金額→件数→人数→商品数→商品点数）
+  returned_sales,
+  SAFE_DIVIDE(
+    returned_sales,
+    LAG(returned_sales, 1) OVER (ORDER BY year_month)
+  ) AS returned_sales_mom,
+  returned_count,
+  SAFE_DIVIDE(
+    returned_count,
+    LAG(returned_count, 1) OVER (ORDER BY year_month)
+  ) AS returned_count_mom,
+  returned_user_count,
+  SAFE_DIVIDE(
+    returned_user_count,
+    LAG(returned_user_count, 1) OVER (ORDER BY year_month)
+  ) AS returned_user_count_mom,
+  returned_product_count,
+  SAFE_DIVIDE(
+    returned_product_count,
+    LAG(returned_product_count, 1) OVER (ORDER BY year_month)
+  ) AS returned_product_count_mom,
+  returned_item_count,
+  SAFE_DIVIDE(
+    returned_item_count,
+    LAG(returned_item_count, 1) OVER (ORDER BY year_month)
+  ) AS returned_item_count_mom
+
+FROM
+  monthly_fact_base
+ORDER BY
+  year_month

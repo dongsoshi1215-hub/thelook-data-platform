@@ -1,0 +1,34 @@
+config {
+    type: "view",
+    database: "project-b5514482-febd-4435-998",
+    schema: "look_util",
+    name: "user_order_stats",
+}
+
+SELECT
+  os.user_id,
+  os.order_id,
+  os.order_year_month,
+  os.user_order_count,
+  DATE_DIFF(
+    DATE(order_day),
+    DATE(user_first_order_day),
+    MONTH
+  ) AS user_order_cohort_month,
+  DATE_DIFF(
+    DATE(order_day),
+    DATE(user_first_order_day),
+    WEEK
+  ) AS user_order_cohort_week,
+  DATE_DIFF(
+    DATE(order_day),
+    DATE(user_first_order_day),
+    DAY
+  ) AS user_order_cohort_day
+FROM
+  `project-b5514482-febd-4435-998.look_util.orders_sequence` AS os
+INNER JOIN
+  `project-b5514482-febd-4435-998.look_util.temp_user_first_orders` AS tufo
+ON
+  os.user_id = tufo.user_id
+

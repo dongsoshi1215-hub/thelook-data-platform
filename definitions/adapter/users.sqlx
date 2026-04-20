@@ -1,0 +1,27 @@
+config {
+    type: "view",
+    database: "project-b5514482-febd-4435-998",
+    schema: "look_adapter",
+    name: "users",
+}
+
+SELECT
+  id,
+  SHA256(first_name) AS first_name_hashed,
+  SHA256(last_name) AS last_name_hashed,
+  SHA256(email) AS email_hashed,
+  age,
+  gender,
+  state,
+  SHA256(street_address) AS street_address_hashed,
+  SHA256(postal_code) AS postal_code_hashed,
+  city,
+  country,
+  SHA256(CAST(latitude AS STRING)) AS latitude_hashed,
+  SHA256(CAST(longitude AS STRING)) AS longitude_hashed,
+  traffic_source,
+  DATETIME(created_at, "Asia/Tokyo") AS created_at,
+  DATE(created_at, "Asia/Tokyo") AS created_date
+FROM
+  ${ref("look_raw", "users")}
+

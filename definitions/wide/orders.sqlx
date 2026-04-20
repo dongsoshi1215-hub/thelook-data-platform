@@ -1,0 +1,228 @@
+config {
+    type: "view",
+    database: "project-b5514482-febd-4435-998",
+    schema: "look_wide",
+    name: "orders",
+}
+
+SELECT
+-- ▼adapter_orders
+  o.order_id,
+  o.user_id,
+  o.status AS order_status,
+  -- ordersテーブルとorder_itemsテーブルの時系列情報は一致しない
+  o.created_at AS order_created_at,
+  o.returned_at AS order_returned_at,
+  o.shipped_at AS order_shipped_at,
+  o.delivered_at AS order_delivered_at,
+  o.created_date AS order_created_date,
+  o.returned_date AS order_returned_date,
+  o.shipped_date AS order_shipped_date,
+  o.delivered_date AS order_delivered_date,
+
+
+-- ▼users
+  u.first_name_hashed AS user_first_name_hashed,
+  u.last_name_hashed AS user_last_name_hashed,
+  u.email_hashed AS user_email_hashed,
+  u.age AS user_age,
+  u.gender AS user_gender,
+  u.state AS user_state,
+  u.street_address_hashed AS user_street_address_hashed,
+  u.postal_code_hashed AS user_postal_code_hashed,
+  u.city AS user_city,
+  u.country AS user_country,
+  u.latitude_hashed AS user_latitude_hashed,
+  u.longitude_hashed AS user_longitude_hashed,
+  u.traffic_source,
+  u.created_at AS user_created_at,
+  u.created_date AS user_created_date,
+
+
+-- ▼user_age_groups
+  uga.age_group AS user_age_group,
+
+
+-- ▼order_funnel
+  ofu.order_year_month,
+  ofu.order_year_week,
+  ofu.is_ordered,
+  ofu.is_returned,
+  ofu.is_shipped,
+  ofu.is_delivered,
+  ofu.shipped_day_after_order,
+  ofu.delivered_day_after_order,
+  ofu.returned_day_after_order,
+
+
+-- ▼user_first_orders
+  ufo.first_order_id AS user_first_order_id,
+  ufo.is_user_first_order,
+  ufo.user_first_order_year_month,
+  ufo.user_first_order_year_week,
+  ufo.user_first_order_day,
+
+
+-- ▼user_order_stats
+  uos.user_order_count,
+  uos.user_order_cohort_month,
+  uos.user_order_cohort_week,
+  uos.user_order_cohort_day,
+
+
+-- ▼user_funnel
+  uf.user_f1_item_name,
+  uf.user_f1_item_price,
+  uf.user_f2_item_name,
+  uf.user_f2_item_price,
+  uf.user_f2_day,
+  uf.user_f3_item_name,
+  uf.user_f3_item_price,
+  uf.user_f3_day,
+
+
+-- ▼order_items
+  oi.id AS order_item_id,
+  oi.product_id,
+  oi.inventory_item_id,
+  oi.created_at AS order_item_created_at,
+  oi.shipped_at AS order_item_shipped_at,
+  oi.delivered_at AS order_item_delivered_at,
+  oi.returned_at AS order_item_returned_at,
+  oi.sale_price,
+  oi.created_date AS order_item_created_date,
+  oi.shipped_date AS order_item_shipped_date,
+  oi.delivered_date AS order_item_delivered_date,
+  oi.returned_date AS order_item_returned_date,
+
+
+-- ▼item_first_orders
+  ifo.first_order_id AS item_first_order_id,
+  ifo.is_item_first_order,
+  ifo.item_first_order_year_month,
+  ifo.item_first_order_year_week,
+  ifo.item_first_order_day,
+
+
+-- ▼item_order_stats
+  ios.item_order_count,
+  ios.item_order_cohort_month,
+  ios.item_order_cohort_week,
+  ios.item_order_cohort_day,
+
+
+-- ▼item_funnel
+  ifu.item_f2_day,
+  ifu.item_f3_day,
+
+
+-- ▼item_percentile_stats
+  ips.item_percentile_total_rank,
+  ips.item_percentile_total_base,
+  ips.item_percentile_month_rank,
+  ips.item_percentile_month_base,
+
+
+-- ▼products
+  p.cost AS product_cost,
+  p.category AS product_category,
+  p.name AS product_name,
+  p.brand AS product_brand,
+  p.retail_price,
+  p.department AS product_department,
+  p.sku AS product_sku,
+  p.distribution_center_id,
+
+
+-- ▼inventory_items
+  ii.created_at AS inventory_item_created_at,
+  ii.sold_at AS inventory_item_sold_at,
+  ii.created_date AS inventory_item_created_date,
+  ii.sold_date AS inventory_item_sold_date,
+
+
+-- ▼distribution_centers
+  dc.name AS distribution_center_name,
+  dc.latitude AS distribution_center_latitude,
+  dc.longitude AS distribution_center_longitude,
+
+
+-- ▼calendar
+  c.day_of_week_num_ja AS order_day_of_week_num_ja,
+  c.day_of_week_ja AS order_day_of_week_ja,
+  c.day_of_week_num AS order_day_of_week_num,
+  c.day_of_week_en AS order_day_of_week_en,
+  c.weekday_holiday AS order_weekday_holiday,
+  c.year_quarter AS order_year_quarter,
+  c.month AS order_month,
+  c.quarter AS order_quarter,
+  c.year AS order_year
+
+
+FROM
+  `project-b5514482-febd-4435-998.look_adapter.orders` AS o
+LEFT JOIN
+  `project-b5514482-febd-4435-998.look_adapter.users` AS u
+ON
+  o.user_id = u.id
+LEFT JOIN
+  `project-b5514482-febd-4435-998.look_util.user_age_groups` AS uga
+ON
+  o.user_id = uga.user_id
+LEFT JOIN
+  `project-b5514482-febd-4435-998.look_util.order_funnel` AS ofu
+ON
+  o.order_id = ofu.order_id
+LEFT JOIN
+  `project-b5514482-febd-4435-998.look_util.user_first_orders` AS ufo
+ON
+  o.user_id = ufo.user_id
+LEFT JOIN
+  `project-b5514482-febd-4435-998.look_util.user_order_stats` AS uos
+ON
+  o.order_id = uos.order_id
+  AND o.user_id = uos.user_id
+LEFT JOIN
+  `project-b5514482-febd-4435-998.look_util.user_funnel` AS uf
+ON
+  o.user_id = uf.user_id
+LEFT JOIN
+  `project-b5514482-febd-4435-998.look_adapter.order_items` AS oi
+ON
+  o.order_id = oi.order_id
+  AND o.user_id = oi.user_id
+LEFT JOIN
+  `project-b5514482-febd-4435-998.look_util.item_first_orders` AS ifo
+ON
+  oi.product_id = ifo.product_id
+LEFT JOIN
+  `project-b5514482-febd-4435-998.look_util.item_order_stats` AS ios
+ON
+  oi.id = ios.order_item_id
+LEFT JOIN
+  `project-b5514482-febd-4435-998.look_util.item_funnel` AS ifu
+ON
+  oi.product_id = ifu.product_id
+LEFT JOIN
+  `project-b5514482-febd-4435-998.look_util.item_percentile_stats` AS ips
+ON
+  oi.product_id = ips.product_id
+  AND ofu.order_year_month = ips.order_year_month
+LEFT JOIN
+  `project-b5514482-febd-4435-998.look_adapter.products` AS p
+ON
+  oi.product_id = p.id
+LEFT JOIN
+  `project-b5514482-febd-4435-998.look_adapter.inventory_items` AS ii
+ON
+  oi.inventory_item_id = ii.id
+  AND oi.product_id = ii.product_id
+  AND p.distribution_center_id = ii.product_distribution_center_id
+LEFT JOIN
+  `project-b5514482-febd-4435-998.look_adapter.distribution_centers` AS dc
+ON
+  p.distribution_center_id = dc.id
+LEFT JOIN
+  `project-b5514482-febd-4435-998.look_util.calendar` AS c
+ON
+  o.created_date = c.calendar_date

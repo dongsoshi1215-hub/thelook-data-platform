@@ -1,0 +1,30 @@
+config {
+    type: "view",
+    database: "project-b5514482-febd-4435-998",
+    schema: "look_mart",
+    name: "adhoc_monthly_aggregation_item",
+}
+
+-- 商品ごとの「最終購入年月」「販売回数」「合計金額」「平均購入単価」「購入回数の10分位」「平均購入単価の10分位」を算出
+WITH item_summary AS (
+  SELECT
+    product_id,
+    MAX(order_year_month) AS last_order_year_month,
+    COUNT(DISTINCT order_item_id) AS order_count,
+    SUM(sale_price) AS total_amount,
+    SUM(sale_price) / COUNT(DISTINCT order_item_id) AS avg_amount
+  FROM
+    `project-b5514482-febd-4435-998.look_wide.orders`
+  GROUP BY
+    product_id
+)
+SELECT
+  product_id,
+  last_order_year_month,
+  order_count,
+  total_amount,
+  avg_amount,
+  NTILE(10) OVER (ORDER BY order_count) AS order_count_decile,
+  NTILE(10) OVER (ORDER BY avg_amount) AS avg_amount_decile
+FROM
+  item_summary

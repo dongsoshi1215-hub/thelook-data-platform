@@ -1,0 +1,94 @@
+config {
+    type: "view",
+    database: "project-b5514482-febd-4435-998",
+    schema: "look_mart",
+    name: "facility_and_labor_cost",
+}
+
+WITH constants AS (
+  SELECT
+    167.0 AS inventory_in_capacity_per_day, -- 入庫1人あたり1日処理数
+    71.42 AS sold_capacity_per_day, -- 出庫1人あたり1日処理数
+    19 AS labor_cost_per_hour, -- 時給
+    0.06 AS sqm_per_item, -- 在庫1個あたり占有面積(㎡)
+    20 AS shelf_levels, -- 棚の段数
+    8.18 AS warehouse_rent_per_sqm, -- 1㎡あたりの賃料（倉庫）
+    9956.61 AS office_rent, -- オフィス月額賃料（人数✕1人あたりの床面積✕1m2あたりの賃料）
+    4800 AS office_salary_per_person, -- オフィス1人あたり月給
+    30 AS office_staff_count -- オフィス人数
+),
+
+daily_inventory_in AS (
+  SELECT
+    created_date,
+    COUNT(*) AS inventory_in_count
+  FROM
+    `project-b5514482-febd-4435-998.look_mart.inventory_items`
+  GROUP BY
+    created_date
+),
+
+daily_sold AS (
+  SELECT
+    sold_date,
+    COUNT(*) AS sold_count
+  FROM
+    `project-b5514482-febd-4435-998.look_mart.inventory_items`
+  WHERE
+    sold_date IS NOT NULL
+  GROUP BY
+    sold_date
+),
+
+daily_combined AS (
+  SELECT
+    FORMAT_DATE('%Y-%m', COALESCE(i.created_date, s.sold_date)) AS base_year_month,
+    COALESCE(i.created_date, s.sold_date) AS base_date,
+    COALESCE(i.inventory_in_count, 0) AS inventory_in_count,
+    COALESCE(s.sold_count, 0) AS sold_count
+  FROM
+    daily_inventory_in AS i
+  FULL OUTER JOIN
+    daily_sold AS s
+  ON
+    i.created_date = s.sold_date
+),
+
+daily_inventory AS (
+  SELECT
+    d.base_year_month,
+    d.base_date,
+    d.inventory_in_count,
+    d.sold_count,
+    SUM(d.inventory_in_count) OVER (ORDER BY d.base_date) AS cumulative_inventory_in,
+    SUM(d.sold_count) OVER (ORDER BY d.base_date) AS cumulative_sold,
+    SUM(d.inventory_in_count) OVER (ORDER BY d.base_date)
+      - SUM(d.sold_count) OVER (ORDER BY d.base_date) AS inventory_count,
+    ROUND(
+      (d.inventory_in_count / c.inventory_in_capacity_per_day
+        + d.sold_count / c.sold_capacity_per_day) * c.labor_cost_per_hour,
+      2
+    ) AS daily_labor_cost
+  FROM
+    daily_combined AS d
+  CROSS JOIN
+    constants AS c
+)
+
+SELECT
+  d.*,
+  ROUND(d.inventory_count * c.sqm_per_item / c.shelf_levels * c.warehouse_rent_per_sqm, 2) AS distribution_center_rent,
+  c.office_rent,
+  ROUND(ROUND(d.inventory_count * c.sqm_per_item / c.shelf_levels * c.warehouse_rent_per_sqm, 2) + c.office_rent, 2) AS total_facility_rent,
+  ROUND(SUM(d.daily_labor_cost) OVER (PARTITION BY d.base_year_month), 2) AS monthly_dc_labor_cost,
+  ROUND(c.office_salary_per_person * c.office_staff_count, 2) AS monthly_office_labor_cost,
+  ROUND(SUM(d.daily_labor_cost) OVER (PARTITION BY d.base_year_month) + c.office_salary_per_person * c.office_staff_count, 2) AS total_labor_cost
+FROM
+  daily_inventory AS d
+CROSS JOIN
+  constants AS c
+WHERE
+  d.base_date = LAST_DAY(d.base_date)
+  OR d.base_date = (SELECT MAX(base_date) FROM daily_inventory)
+ORDER BY
+  d.base_date

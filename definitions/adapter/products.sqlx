@@ -1,0 +1,20 @@
+config {
+    type: "view",
+    database: "project-b5514482-febd-4435-998",
+    schema: "look_adapter",
+    name: "products",
+}
+
+SELECT
+  id,
+  cost,
+  category,
+  name,
+  brand,
+  retail_price,
+  department,
+  sku,
+  distribution_center_id
+FROM
+  ${ref("look_raw", "products")}
+

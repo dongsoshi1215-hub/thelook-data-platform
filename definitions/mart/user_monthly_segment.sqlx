@@ -1,0 +1,132 @@
+config {
+    type: "view",
+    database: "project-b5514482-febd-4435-998",
+    schema: "look_mart",
+    name: "user_monthly_segment",
+}
+
+-- 顧客ごとの月別「購入回数」「合計金額」「平均購入単価」「セグメント」
+WITH user_monthly_summary AS (
+  SELECT
+    t.user_id,
+    t.year_month,
+    t.order_count,
+    t.avg_amount,
+    t.total_amount,
+    -- 過去12ヶ月の累計金額
+    SUM(t2.total_amount) AS total_amount_12m,
+    -- 過去12ヶ月の累計注文回数
+    SUM(t2.order_count) AS total_orders_12m,
+    -- 過去12ヶ月の平均単価
+    SAFE_DIVIDE(
+      SUM(t2.total_amount), 
+      NULLIF(SUM(t2.order_count), 0)
+    ) AS avg_amount_12m,
+    -- 最終注文からの経過月数
+    MIN(
+      CASE WHEN t2.order_count > 0 THEN
+        DATE_DIFF(
+          PARSE_DATE('%Y-%m', t.year_month),
+          PARSE_DATE('%Y-%m', t2.year_month),
+          MONTH
+        )
+      END
+    ) AS months_since_last_order
+  FROM
+    `project-b5514482-febd-4435-998.look_mart.user_monthly_purchase_summary` t
+  LEFT JOIN
+    `project-b5514482-febd-4435-998.look_mart.user_monthly_purchase_summary` t2
+    ON t.user_id = t2.user_id
+    AND t2.year_month <= t.year_month
+    AND t2.year_month > FORMAT_DATE('%Y-%m', 
+        DATE_SUB(PARSE_DATE('%Y-%m', t.year_month), INTERVAL 12 MONTH))
+  GROUP BY
+    t.user_id, t.year_month, t.order_count, t.avg_amount, t.total_amount
+),
+
+with_rank AS (
+  SELECT
+    user_id,
+    year_month,
+    order_count,
+    avg_amount,
+    total_amount,
+    total_amount_12m,
+    total_orders_12m,
+    avg_amount_12m,
+    months_since_last_order,
+    CASE
+      WHEN total_amount_12m >= 180
+        AND total_orders_12m >= 2
+        AND avg_amount_12m >= 120
+        AND months_since_last_order <= 3
+      THEN 'A'
+      WHEN total_amount_12m >= 80
+        AND total_orders_12m >= 1
+        AND avg_amount_12m >= 60
+        AND months_since_last_order <= 10
+      THEN 'B'
+      ELSE 'C'
+    END AS abc_rank
+  FROM
+    user_monthly_summary
+),
+
+with_segment_base AS (
+  SELECT
+    user_id,
+    year_month,
+    order_count,
+    avg_amount,
+    total_amount,
+    total_amount_12m,
+    total_orders_12m,
+    avg_amount_12m,
+    months_since_last_order,
+    abc_rank,
+    -- 前月の購入有無を取得
+    LAG(order_count, 1) OVER (
+      PARTITION BY user_id 
+      ORDER BY year_month
+    ) AS prev_month_order_count,
+    -- 初回購入月を取得
+    MIN(CASE WHEN order_count > 0 THEN year_month END) OVER (
+      PARTITION BY user_id
+    ) AS first_purchase_month
+  FROM
+    with_rank
+)
+
+SELECT
+  user_id,
+  year_month,
+  order_count,
+  avg_amount,
+  total_amount,
+  total_amount_12m,
+  total_orders_12m,
+  avg_amount_12m,
+  months_since_last_order,
+  abc_rank,
+  CASE
+    -- 新規顧客：該当年月が初回購入月
+    WHEN year_month = first_purchase_month
+      THEN '新規顧客'
+    -- 離脱顧客：当月購入なし
+    WHEN order_count = 0
+      THEN '離脱顧客'
+    -- 復帰顧客：当月購入あり AND 前月購入なし
+    WHEN order_count > 0 AND COALESCE(prev_month_order_count, 0) = 0
+      THEN '復帰顧客'
+    -- ロイヤル顧客：当月+前月購入あり AND Aランク
+    WHEN order_count > 0 AND prev_month_order_count > 0 AND abc_rank = 'A'
+      THEN 'ロイヤル顧客'
+    -- リピーター顧客：当月+前月購入あり AND Aランク以外
+    WHEN order_count > 0 AND prev_month_order_count > 0
+      THEN 'リピーター顧客'
+  END AS segment
+FROM
+  with_segment_base
+ORDER BY
+  user_id,
+  year_month

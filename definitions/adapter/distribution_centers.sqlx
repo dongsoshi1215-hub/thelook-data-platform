@@ -1,0 +1,15 @@
+config {
+    type: "view",
+    database: "project-b5514482-febd-4435-998",
+    schema: "look_adapter",
+    name: "distribution_centers",
+}
+
+SELECT
+  id,
+  name,
+  latitude,
+  longitude
+FROM
+  ${ref("look_raw", "distribution_centers")}
+

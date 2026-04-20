@@ -1,0 +1,44 @@
+config {
+    type: "view",
+    database: "project-b5514482-febd-4435-998",
+    schema: "look_util",
+    name: "order_items_sequence",
+}
+
+SELECT
+  oi.id AS order_item_id,
+  oi.order_id,
+  oi.user_id,
+  oi.product_id,
+  oi.inventory_item_id,
+  oi.status,
+  os.created_at,
+  os.shipped_at,
+  os.delivered_at,
+  os.returned_at,
+  oi.sale_price,
+  os.created_date,
+  os.shipped_date,
+  os.delivered_date,
+  os.returned_date,
+  ROW_NUMBER() OVER (
+    PARTITION BY oi.product_id
+    ORDER BY os.created_at, oi.id
+  ) AS item_order_count,
+  p.name AS product_name,
+  os.user_order_count,
+  os.order_year_month,
+  os.order_year_week,
+  os.order_day
+FROM
+  `project-b5514482-febd-4435-998.look_adapter.order_items` AS oi
+INNER JOIN
+  `project-b5514482-febd-4435-998.look_util.orders_sequence` AS os
+ON
+  oi.order_id = os.order_id
+INNER JOIN
+  `project-b5514482-febd-4435-998.look_adapter.products` AS p
+ON
+  oi.product_id = p.id
+ORDER BY
+  product_id, item_order_count
