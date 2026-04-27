@@ -41,7 +41,6 @@ thelook-data-platform/
 │   ├── util/       # 汎用的な中間テーブル
 │   └── wide/       # 結合済みワイドテーブル
 │   └── mart/       # 分析レポート用テーブル
-├── .gitignore
 ├── README.md
 └── workflow_settings.yaml
 ```
